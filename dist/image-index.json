@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-27T08:40:20.881Z",
+  "assets": {
+    "0dd6d465": {
+      "image": "data/0dd6d465.jpg",
+      "games": [
+        "bh3"
+      ],
+      "characters": [
+        "Kiana",
+        "Mei"
+      ],
+      "last_updated": "2026-05-27T08:40:20.895Z"
+    }
+  },
+  "games": {
+    "bh3": [
+      "0dd6d465"
+    ]
+  },
+  "characters": {
+    "Kiana": [
+      "0dd6d465"
+    ],
+    "Mei": [
+      "0dd6d465"
+    ]
+  }
+}
