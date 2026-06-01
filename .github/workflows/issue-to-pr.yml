@@ -86,6 +86,7 @@ jobs:
 
           ✓ Allow GitHub Actions to create and approve pull requests"
 
+            git push origin --delete "$BRANCH"
             exit 1
           fi
 
