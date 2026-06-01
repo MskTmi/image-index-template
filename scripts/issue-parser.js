@@ -33,9 +33,20 @@ function extractSection(body, heading) {
     return sectionLines.join('\n').trim();
 }
 
+function stripCodeFences(section) {
+    // render: text 会让 GitHub 将 textarea 内容包裹在 ```text ... ``` 中，
+    // 这里移除首尾的代码围栏标记，避免它们被当成有效内容。
+    const codeFencePattern = /^```[\s\S]*$/;
+    return section
+        .split(/\r?\n/)
+        .filter((line) => !codeFencePattern.test(line.trim()))
+        .join('\n')
+        .trim();
+}
+
 function normalizeList(section) {
     // 将 Markdown 列表归一化成字符串数组。
-    return section
+    return stripCodeFences(section)
         .split(/\r?\n/)
         .map((line) => line.replace(/^[-*+]\s*/, '').trim())
         .filter(Boolean);

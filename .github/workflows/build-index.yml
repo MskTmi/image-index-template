@@ -5,10 +5,10 @@ name: Build Image Index
 on:
     push:
         paths:
-        - "characters/**"
+            - "characters/**"
             - "meta/**"
             - "scripts/build-index.js"
-        - "scripts/character-index.js"
+            - "scripts/character-index.js"
             - ".github/workflows/build-index.yml"
     workflow_dispatch:
 

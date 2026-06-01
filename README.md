@@ -5,9 +5,11 @@
 ## 快速开始
 
 1. 点击右上角的 **Use this template** → **Create a new repository**
-2. 使用仓库内置的 Issue Form 提交第一批图片
-3. 等待工作流自动创建 Pull Request，审核并合并
-4. 合并后直接读取 `dist/` 下的 JSON 文件作为最终索引
+2. 进入 **Settings → Actions → General**，确保以下选项已勾选：
+   - **Allow GitHub Actions to create and approve pull requests**
+3. 使用仓库内置的 Issue Form 提交第一批图片
+4. 等待工作流自动创建 Pull Request，审核并合并
+5. 合并后直接读取 `dist/` 下的 JSON 文件作为最终索引
 
 > 仓库内置的 `data/0dd6d465.jpg` 与 `meta/0dd6d465.json` 为示例文件，用于演示目录结构和 metadata 格式；正式使用时可保留或删除
 
