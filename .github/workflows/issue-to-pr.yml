@@ -68,13 +68,27 @@ jobs:
           git commit -m "chore: import images from issue #${ISSUE_NUMBER}"
           git push --set-upstream origin "$BRANCH"
 
-          PR_BODY=$(node -e "const r=JSON.parse(require('fs').readFileSync('.tmp/result.json','utf8'));const lines=['Closes #${ISSUE_NUMBER}','','Imported from ${ISSUE_URL}','','## 导入结果',''];lines.push('- 新增图片: '+r.created.length+' 张');if(r.resolved_characters&&r.resolved_characters.length) lines.push('- 已匹配角色: '+r.resolved_characters.join(', '));if(r.new_characters&&r.new_characters.length) lines.push('- 新角色待审核: '+r.new_characters.join(', '));console.log(lines.join('\\\\n'));")
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('.tmp/result.json', 'utf8'));
+            const lines = [
+              'Closes #${ISSUE_NUMBER}',
+              '',
+              'Imported from ${ISSUE_URL}',
+              '',
+              '## 导入结果',
+              '',
+              '- 新增图片: ' + r.created.length + ' 张'
+            ];
+            if (r.resolved_characters && r.resolved_characters.length) lines.push('- 已匹配角色: ' + r.resolved_characters.join(', '));
+            if (r.new_characters && r.new_characters.length) lines.push('- 新角色待审核: ' + r.new_characters.join(', '));
+            require('fs').writeFileSync('.tmp/pr-body.txt', lines.join('\n'));
+          "
 
           if ! gh pr create \
             --base "${{ github.event.repository.default_branch }}" \
             --head "$BRANCH" \
             --title "chore: import images from issue #${ISSUE_NUMBER}" \
-            --body "$PR_BODY"; then
+            --body-file .tmp/pr-body.txt; then
             echo "::error::Please enable: Settings > Actions > General > Allow GitHub Actions to create and approve pull requests"
 
             gh issue comment "$ISSUE_NUMBER" \
