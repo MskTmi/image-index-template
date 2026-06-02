@@ -59,8 +59,10 @@ function extractUrls(section) {
 function parseIssueBody(body) {
     // 优先解析模板分段；若 Images 分段缺失链接，则回退到全文抓取 URL。
     const gameSection = extractSection(body, 'Game');
-    const charactersSection = extractSection(body, 'Characters');
+    const charactersSection = extractSection(body, 'Characters') || extractSection(body, 'Character');
     const imagesSection = extractSection(body, 'Images');
+    const aliasesSection = extractSection(body, 'Aliases') || extractSection(body, 'Alias');
+    const aliases = aliasesSection ? normalizeList(aliasesSection) : [];
 
     const imageUrls = extractUrls(imagesSection).length > 0 ? extractUrls(imagesSection) : extractUrls(body);
     const characters = Array.from(new Set(normalizeList(charactersSection)));
@@ -71,7 +73,7 @@ function parseIssueBody(body) {
         .map((item) => item.trim())
         .filter(Boolean);
 
-    if (games.length === 0) {
+    if (games.length === 0 && !aliasesSection) {
         throw new Error('Issue is missing the Game section.');
     }
 
@@ -79,14 +81,15 @@ function parseIssueBody(body) {
         throw new Error('Issue is missing the Characters section.');
     }
 
-    if (imageUrls.length === 0) {
+    if (imageUrls.length === 0 && imagesSection) {
         throw new Error('Issue does not contain any downloadable image URLs.');
     }
 
     return {
         games,
         characters,
-        imageUrls
+        imageUrls,
+        aliases
     };
 }
 
