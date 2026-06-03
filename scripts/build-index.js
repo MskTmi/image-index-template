@@ -66,13 +66,16 @@ async function readMetaFiles() {
         const raw = JSON.parse(await fs.readFile(filePath, 'utf8'));
         const id = ensureString(raw.id, 'id', fileName);
         const image = ensureString(raw.image, 'image', fileName);
+        const hash = typeof raw.hash === 'string' ? raw.hash.trim() : '';
+        const width = typeof raw.width === 'number' ? raw.width : 0;
+        const height = typeof raw.height === 'number' ? raw.height : 0;
         const games = ensureStringList(raw.games, 'games', fileName);
         const characters = ensureStringList(raw.characters, 'characters', fileName);
         const lastUpdated = typeof raw.last_updated === 'string' && raw.last_updated.trim()
             ? raw.last_updated.trim()
             : new Date().toISOString();
 
-        items.push({ id, image, games, characters, last_updated: lastUpdated });
+        items.push({ id, image, hash, width, height, games, characters, last_updated: lastUpdated });
     }
 
     return items.sort((left, right) => compareText(left.id, right.id));
@@ -102,6 +105,9 @@ async function buildIndex() {
 
         imageIndex.assets[item.id] = {
             image: item.image,
+            hash: item.hash,
+            width: item.width,
+            height: item.height,
             games: item.games,
             characters: item.characters,
             last_updated: item.last_updated

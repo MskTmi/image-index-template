@@ -1,6 +1,8 @@
+const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const sharp = require('sharp');
 const { customAlphabet } = require('nanoid');
 const { CHARACTER_DIR, loadAliasMap, loadCharacterIndex, resolveCharacters } = require('./character-index.js');
 const { parseIssueBody } = require('./issue-parser.js');
@@ -74,11 +76,43 @@ async function downloadImage(url, tempDir, fileName) {
     return tempPath;
 }
 
-async function writeMetadata({ id, games, characters }) {
-    // metadata 只保存索引所需字段，保持单图数据结构稳定。
+async function computeHash(filePath) {
+    const buffer = await fs.readFile(filePath);
+    return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
+async function findDuplicateByHash(hash) {
+    // 扫描已有 meta 文件，检查是否存在相同 hash 的图片。
+    let entries;
+    try {
+        entries = await fs.readdir(META_DIR, { withFileTypes: true });
+    } catch {
+        return null;
+    }
+
+    for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.json')) {
+            continue;
+        }
+
+        const filePath = path.join(META_DIR, entry.name);
+        const meta = JSON.parse(await fs.readFile(filePath, 'utf8'));
+
+        if (meta.hash === hash) {
+            return meta.image;
+        }
+    }
+
+    return null;
+}
+
+async function writeMetadata({ id, games, characters, hash, width, height }) {
     const metadata = {
         id,
         image: `data/${id}.jpg`,
+        hash,
+        width,
+        height,
         games,
         characters
     };
@@ -130,6 +164,7 @@ async function processIssue(issue) {
     await fs.mkdir(META_DIR, { recursive: true });
 
     const created = [];
+    const duplicates = [];
 
     try {
         for (let index = 0; index < parsed.imageUrls.length; index += 1) {
@@ -139,10 +174,32 @@ async function processIssue(issue) {
 
             // 所有输入格式最终都统一输出为 JPEG，便于仓库存储和后续分发。
             await optimizeImage({ inputPath: tempSource, outputPath: finalImage });
+
+            // 计算 hash 并获取尺寸。
+            const hash = await computeHash(finalImage);
+            const metadata = await sharp(finalImage).metadata();
+            const width = metadata.width;
+            const height = metadata.height;
+
+            // 检查是否与已有图片重复。
+            const duplicateImage = await findDuplicateByHash(hash);
+
+            if (duplicateImage) {
+                await fs.unlink(finalImage);
+                duplicates.push({
+                    hash,
+                    duplicate_of: duplicateImage
+                });
+                continue;
+            }
+
             await writeMetadata({
                 id,
                 games: parsed.games,
-                characters: canonicalCharacters
+                characters: canonicalCharacters,
+                hash,
+                width,
+                height
             });
 
             created.push(id);
@@ -156,6 +213,7 @@ async function processIssue(issue) {
         games: parsed.games,
         characters: canonicalCharacters,
         created,
+        duplicates,
         resolved_characters: resolvedCharacters,
         new_characters: newCharacterIds
     };

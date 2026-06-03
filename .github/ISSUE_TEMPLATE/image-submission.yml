@@ -59,5 +59,3 @@ body:
           required: true
         - label: 我已确认 Characters 按每行一个填写，没有混入多余说明文字
           required: true
-        - label: 我已确认 Images 中上传的是本次投稿要收录的图片文件
-          required: true

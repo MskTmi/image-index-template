@@ -52,8 +52,48 @@ jobs:
           NODE_PATH: ${{ runner.temp }}/image-index-runtime/node_modules
         run: node scripts/process-issue.js --issue .tmp/issue.json --output .tmp/result.json
 
+      # 检查是否存在重复图片，若有重复则先评论告知投稿者。
+      - name: Check duplicates and comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('.tmp/result.json', 'utf8'));
+
+            if (r.duplicates && r.duplicates.length) {
+              const { execSync } = require('child_process');
+              const lines = [
+                '## ⚠️ 检测到重复图片',
+                '',
+                '以下图片与仓库中已有图片完全相同，已跳过导入：',
+                ''
+              ];
+              for (const d of r.duplicates) {
+                lines.push('- SHA256: \`' + d.hash.substring(0, 16) + '...\` → 重复于 \`' + d.duplicate_of + '\`');
+              }
+              const body = lines.join('\n');
+              execSync('gh issue comment ' + process.env.ISSUE_NUMBER + ' --body -', {
+                input: body,
+                stdio: 'inherit'
+              });
+            }
+          "
+
+      # 如果没有新增图片（全部重复），跳过 PR 创建。
+      - name: Skip if no new images
+        id: check_empty
+        run: |
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('.tmp/result.json', 'utf8'));
+            if (r.created.length === 0) {
+              require('fs').writeFileSync('.tmp/skip-pr', 'skip');
+            }
+          "
+
       # 将生成的数据提交到独立分支，再创建 PR 交由维护者审阅。
       - name: Create pull request
+        if: hashFiles('.tmp/skip-pr') == ''
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -79,6 +119,12 @@ jobs:
               '',
               '- 新增图片: ' + r.created.length + ' 张'
             ];
+            if (r.duplicates && r.duplicates.length) {
+              lines.push('- 重复跳过: ' + r.duplicates.length + ' 张');
+              for (const d of r.duplicates) {
+                lines.push('  - \`' + d.hash.substring(0, 16) + '...\` → 重复于 \`' + d.duplicate_of + '\`');
+              }
+            }
             if (r.resolved_characters && r.resolved_characters.length) lines.push('- 已匹配角色: ' + r.resolved_characters.join(', '));
             if (r.new_characters && r.new_characters.length) lines.push('- 新角色待审核: ' + r.new_characters.join(', '));
             require('fs').writeFileSync('.tmp/pr-body.txt', lines.join('\n'));
@@ -106,6 +152,7 @@ jobs:
 
       # 回写 Issue 评论，让投稿者能立刻看到系统已处理哪些图片。
       - name: Comment back to issue
+        if: hashFiles('.tmp/skip-pr') == ''
         uses: actions/github-script@v7
         with:
           script: |
