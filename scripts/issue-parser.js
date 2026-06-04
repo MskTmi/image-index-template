@@ -59,13 +59,13 @@ function extractUrls(section) {
 function parseIssueBody(body) {
     // 优先解析模板分段；若 Images 分段缺失链接，则回退到全文抓取 URL。
     const gameSection = extractSection(body, 'Game');
-    const charactersSection = extractSection(body, 'Characters') || extractSection(body, 'Character');
+    const entitiesSection = extractSection(body, 'Entities') || extractSection(body, 'Entity');
     const imagesSection = extractSection(body, 'Images');
     const aliasesSection = extractSection(body, 'Aliases') || extractSection(body, 'Alias');
     const aliases = aliasesSection ? normalizeList(aliasesSection) : [];
 
     const imageUrls = extractUrls(imagesSection).length > 0 ? extractUrls(imagesSection) : extractUrls(body);
-    const characters = Array.from(new Set(normalizeList(charactersSection)));
+    const entities = Array.from(new Set(normalizeList(entitiesSection)));
     const gamesText = gameSection.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || '';
     // 支持逗号（中英文）、空格、换行分隔多个游戏标识
     const games = gamesText
@@ -77,8 +77,8 @@ function parseIssueBody(body) {
         throw new Error('Issue is missing the Game section.');
     }
 
-    if (characters.length === 0) {
-        throw new Error('Issue is missing the Characters section.');
+    if (entities.length === 0) {
+        throw new Error('Issue is missing the Entities section.');
     }
 
     if (imageUrls.length === 0 && imagesSection) {
@@ -87,7 +87,7 @@ function parseIssueBody(body) {
 
     return {
         games,
-        characters,
+        entities,
         imageUrls,
         aliases
     };
@@ -111,34 +111,23 @@ function parseArgs(argv) {
     return args;
 }
 
-async function main() {
-    // 单独运行时可用于调试 Issue 模板是否能被正确解析。
+if (require.main === module) {
     const args = parseArgs(process.argv.slice(2));
 
-    if (!args.input) {
-        throw new Error('Usage: node scripts/issue-parser.js --input <issue.json> [--output <result.json>]');
-    }
-
-    const issue = JSON.parse(await fs.readFile(args.input, 'utf8'));
-    const parsed = {
-        ...parseIssueBody(issue.body || ''),
-        number: issue.number,
-        title: issue.title,
-        html_url: issue.html_url
-    };
-
-    if (args.output) {
-        await fs.writeFile(args.output, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
-    } else {
-        console.log(JSON.stringify(parsed, null, 2));
-    }
-}
-
-if (require.main === module) {
-    main().catch((error) => {
-        console.error(error.message);
+    if (!args.issue) {
+        console.error('Usage: node scripts/issue-parser.js --issue <issue.json>');
         process.exitCode = 1;
-    });
+    } else {
+        fs.readFile(path.resolve(process.cwd(), args.issue), 'utf8')
+            .then((content) => {
+                const issue = JSON.parse(content);
+                console.log(JSON.stringify(parseIssueBody(issue.body || ''), null, 2));
+            })
+            .catch((error) => {
+                console.error(error.message);
+                process.exitCode = 1;
+            });
+    }
 }
 
 module.exports = {

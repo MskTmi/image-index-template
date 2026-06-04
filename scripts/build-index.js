@@ -1,13 +1,13 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { compareText, loadCharacterIndex } = require('./character-index.js');
+const { compareText, loadEntityIndex } = require('./entity-index.js');
 
 // 扫描 meta 目录，生成可供前端或脚本直接消费的聚合索引文件。
 // 保持索引结构稳定，是这个模板仓库最重要的发布步骤之一。
 
 const META_DIR = path.resolve(__dirname, '../meta');
 const IMAGE_DIST_FILE = path.resolve(__dirname, '../dist/image-index.json');
-const CHARACTER_DIST_FILE = path.resolve(__dirname, '../dist/character-index.json');
+const ENTITY_DIST_FILE = path.resolve(__dirname, '../dist/entity-index.json');
 const ALIAS_MAP_DIST_FILE = path.resolve(__dirname, '../dist/alias-map.json');
 
 function isJsonFile(name) {
@@ -70,12 +70,12 @@ async function readMetaFiles() {
         const width = typeof raw.width === 'number' ? raw.width : 0;
         const height = typeof raw.height === 'number' ? raw.height : 0;
         const games = ensureStringList(raw.games, 'games', fileName);
-        const characters = ensureStringList(raw.characters, 'characters', fileName);
+        const entities = ensureStringList(raw.entities, 'entities', fileName);
         const lastUpdated = typeof raw.last_updated === 'string' && raw.last_updated.trim()
             ? raw.last_updated.trim()
             : new Date().toISOString();
 
-        items.push({ id, image, hash, width, height, games, characters, last_updated: lastUpdated });
+        items.push({ id, image, hash, width, height, games, entities, last_updated: lastUpdated });
     }
 
     return items.sort((left, right) => compareText(left.id, right.id));
@@ -85,21 +85,21 @@ async function buildIndex() {
     // 将单图 metadata 重组成总表和倒排索引，便于按游戏与角色检索。
     const generatedAt = new Date().toISOString();
     const items = await readMetaFiles();
-    const characterIndex = await loadCharacterIndex();
+    const entityIndex = await loadEntityIndex();
 
     const imageIndex = {
         schema_version: 1,
         generated_at: generatedAt,
         assets: {},
         games: {},
-        characters: {}
+        entities: {}
     };
-    const knownCharacterIds = new Set(Object.keys(characterIndex.characters));
+    const knownEntityIds = new Set(Object.keys(entityIndex.entities));
 
     for (const item of items) {
-        for (const character of item.characters) {
-            if (knownCharacterIds.size > 0 && !knownCharacterIds.has(character)) {
-                throw new Error(`meta/${item.id}.json: characters must use canonical ids only. Unknown character id \"${character}\".`);
+        for (const entity of item.entities) {
+            if (knownEntityIds.size > 0 && !knownEntityIds.has(entity)) {
+                throw new Error(`meta/${item.id}.json: entities must use canonical ids only. Unknown entity id "${entity}".`);
             }
         }
 
@@ -109,7 +109,7 @@ async function buildIndex() {
             width: item.width,
             height: item.height,
             games: item.games,
-            characters: item.characters,
+            entities: item.entities,
             last_updated: item.last_updated
         };
 
@@ -122,27 +122,27 @@ async function buildIndex() {
             imageIndex.games[g].push(item.id);
         }
 
-        for (const character of item.characters) {
-            if (!imageIndex.characters[character]) {
-                imageIndex.characters[character] = [];
+        for (const entity of item.entities) {
+            if (!imageIndex.entities[entity]) {
+                imageIndex.entities[entity] = [];
             }
 
-            imageIndex.characters[character].push(item.id);
+            imageIndex.entities[entity].push(item.id);
         }
     }
 
     const aliasMap = Object.fromEntries(
-        Array.from(characterIndex.aliasMap.entries()).sort(([left], [right]) => compareText(left, right))
+        Array.from(entityIndex.aliasMap.entries()).sort(([left], [right]) => compareText(left, right))
     );
 
     await fs.mkdir(path.dirname(IMAGE_DIST_FILE), { recursive: true });
     await fs.writeFile(IMAGE_DIST_FILE, `${JSON.stringify(imageIndex, null, 2)}\n`, 'utf8');
-    await fs.writeFile(CHARACTER_DIST_FILE, `${JSON.stringify(characterIndex.characters, null, 2)}\n`, 'utf8');
+    await fs.writeFile(ENTITY_DIST_FILE, `${JSON.stringify(entityIndex.entities, null, 2)}\n`, 'utf8');
     await fs.writeFile(ALIAS_MAP_DIST_FILE, `${JSON.stringify(aliasMap, null, 2)}\n`, 'utf8');
 
     return {
         imageIndex,
-        characterIndex: characterIndex.characters,
+        entityIndex: entityIndex.entities,
         aliasMap
     };
 }

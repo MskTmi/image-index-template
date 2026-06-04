@@ -7,7 +7,7 @@
       "games": [
         "bh3"
       ],
-      "characters": [
+      "entities": [
         "Kiana",
         "Mei"
       ],
@@ -19,7 +19,7 @@
       "0dd6d465"
     ]
   },
-  "characters": {
+  "entities": {
     "Kiana": [
       "0dd6d465"
     ],

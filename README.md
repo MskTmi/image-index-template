@@ -18,7 +18,7 @@
 ```txt
 data/        优化后的图片文件（.jpg）
 meta/        单图 metadata（.json）
-characters/  角色词典源文件（.json）
+entities/    角色词典源文件（.json）
 dist/        聚合索引（自动生成）
 scripts/     构建与自动化脚本
 .github/     Issue 模板与 Actions 工作流
@@ -31,7 +31,7 @@ scripts/     构建与自动化脚本
 使用仓库内置的 Issue Form 提交，核心字段：
 
 - **Game**：游戏标识
-- **Characters**：每行一个角色名，直接填写常用称呼即可（如"琪亚娜""芽衣"），无需了解 canonical id 或别名系统
+- **Entities**：每行一个角色名，直接填写常用称呼即可（如"琪亚娜""芽衣"），无需了解 canonical id 或别名系统
 - **Images**：上传一个或多个图片文件
 - **Notes**：可选补充说明
 
@@ -49,10 +49,10 @@ scripts/     构建与自动化脚本
 
 可通过「别名投稿」Issue 模板为角色补充别名
 
-- **Character**：输入角色名（显示名、别名、id 均可），系统自动匹配
+- **Entity**：输入角色名（显示名、别名、id 均可），系统自动匹配
 - **Aliases**：每行一个别名
 
-提交后，系统会将新别名合并到 `characters/` 对应角色文件的 `aliases` 中，重复别名会自动跳过，PR 合并后 `alias-map.json` 也会自动更新。
+提交后，系统会将新别名合并到 `entities/` 对应角色文件的 `aliases` 中，重复别名会自动跳过，PR 合并后 `alias-map.json` 也会自动更新。
 
 
 ## 数据格式
@@ -66,20 +66,20 @@ scripts/     构建与自动化脚本
   "id": "0dd6d465",
   "image": "data/0dd6d465.jpg",
   "games": ["bh3"],
-  "characters": ["Kiana", "Mei"]
+  "entities": ["Kiana", "Mei"]
 }
 ```
 
-| 字段         | 说明                                     |
-| ------------ | ---------------------------------------- |
-| `id`         | 图片唯一标识                             |
-| `image`      | 对应的图片文件路径                       |
-| `games`      | 所属游戏，数组（支持联动等多归属场景）   |
-| `characters` | 图中角色的 canonical id 列表，不包含别名 |
+| 字段       | 说明                                     |
+| ---------- | ---------------------------------------- |
+| `id`       | 图片唯一标识                             |
+| `image`    | 对应的图片文件路径                       |
+| `games`    | 所属游戏，数组（支持联动等多归属场景）   |
+| `entities` | 图中角色的 canonical id 列表，不包含别名 |
 
-### characters/*.json — 角色词典
+### entities/*.json — 角色词典
 
-每个角色一个文件，以 canonical id 命名`aliases` 既用于 Issue 投稿时的名称解析，也开放给下游应用——例如看图识人小游戏中，玩家可以通过别名来识别角色
+每个角色一个文件，以 canonical id 命名。`aliases` 既用于 Issue 投稿时的名称解析，也开放给下游应用——例如看图识人小游戏中，玩家可以通过别名来识别角色
 
 ```json
 {
@@ -113,14 +113,14 @@ scripts/     构建与自动化脚本
     "0dd6d465": {
       "image": "data/0dd6d465.jpg",
       "games": ["bh3"],
-      "characters": ["Kiana", "Mei"],
+      "entities": ["Kiana", "Mei"],
       "last_updated": "2026-05-22T01:28:10.647Z"
     }
   },
   "games": {
     "bh3": ["0dd6d465"]
   },
-  "characters": {
+  "entities": {
     "Kiana": ["0dd6d465"],
     "Mei": ["0dd6d465"]
   }
@@ -133,11 +133,11 @@ scripts/     构建与自动化脚本
 | `generated_at`   | 本次生成时间                                        |
 | `assets`         | 以图片 ID 为 key 的主数据表                         |
 | `games`          | 按游戏维度的倒排索引（游戏 ID → 图片 ID 列表）      |
-| `characters`     | 按角色维度的倒排索引（canonical id → 图片 ID 列表） |
+| `entities`       | 按角色维度的倒排索引（canonical id → 图片 ID 列表） |
 
-#### character-index.json
+#### entity-index.json
 
-角色词典聚合，合并 `characters/` 目录下所有角色文件
+角色词典聚合，合并 `entities/` 目录下所有角色文件
 
 ```json
 {
@@ -167,7 +167,7 @@ scripts/     构建与自动化脚本
 
 基于这套图片索引仓库，你可以快速搭建以下应用，只需读取 `dist/` 下的 JSON 即可，无需自建后端：
 
-- **看图识人小游戏** — 随机展示图片，玩家输入角色名或别名作答用 `alias-map.json` 统一判定（如"草履虫""琪亚娜"都匹配 Kiana），用 `character-index.json` 获取提示
-- **角色图鉴 / 画廊** — 按游戏或角色筛选图片，生成图片墙 `image-index.json` 内置的倒排索引可直接按维度过滤，无需遍历
+- **看图识人小游戏** — 随机展示图片，玩家输入角色名或别名作答。用 `alias-map.json` 统一判定（如"草履虫""琪亚娜"都匹配 Kiana），用 `entity-index.json` 获取提示
+- **角色图鉴 / 画廊** — 按游戏或角色筛选图片，生成图片墙。`image-index.json` 内置的倒排索引可直接按维度过滤，无需遍历
 - **随机图片** — 按游戏、角色或随机返回图片，供 Bot、网页、小程序调用 
 - **社区 Bot 插件** — 在 QQ / Discord / Telegram Bot 中接入，用户发送"来张芽衣"即可返回对应角色的随机图片

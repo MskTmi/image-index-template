@@ -28,10 +28,10 @@ function ensureOptionalStringList(value, fieldName, canonicalId) {
     return Array.from(new Set(list)).sort(compareText);
 }
 
-function buildAliasMap(characters) {
+function buildAliasMap(entities) {
     const aliasMap = new Map();
 
-    for (const [canonicalId, entry] of Object.entries(characters)) {
+    for (const [canonicalId, entry] of Object.entries(entities)) {
         const candidates = [canonicalId, entry.display_name, ...entry.aliases].filter(Boolean);
 
         for (const candidate of candidates) {
@@ -39,7 +39,7 @@ function buildAliasMap(characters) {
             const existing = aliasMap.get(normalized);
 
             if (existing && existing !== canonicalId) {
-                throw new Error(`characters: alias \"${normalized}\" conflicts between ${existing} and ${canonicalId}.`);
+                throw new Error(`entities: alias "${normalized}" conflicts between ${existing} and ${canonicalId}.`);
             }
 
             aliasMap.set(normalized, canonicalId);
@@ -65,9 +65,9 @@ function ensureGamesList(value, fileName, id) {
     return Array.from(new Set(list)).sort(compareText);
 }
 
-function normalizeCharacterEntry(raw, fileName) {
+function normalizeEntityEntry(raw, fileName) {
     if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
-        throw new Error(`${fileName}: character definition must be an object.`);
+        throw new Error(`${fileName}: entity definition must be an object.`);
     }
 
     const id = normalizeText(raw.id);
@@ -94,22 +94,22 @@ function isJsonFile(name) {
     return name.toLowerCase().endsWith('.json');
 }
 
-function normalizeCharacterEntries(rawEntries) {
-    const characters = {};
+function normalizeEntityEntries(rawEntries) {
+    const entities = {};
 
     for (const rawEntry of rawEntries) {
-        if (characters[rawEntry.id]) {
-            throw new Error(`characters: duplicate canonical id ${rawEntry.id}.`);
+        if (entities[rawEntry.id]) {
+            throw new Error(`entities: duplicate canonical id ${rawEntry.id}.`);
         }
 
-        characters[rawEntry.id] = rawEntry.entry;
+        entities[rawEntry.id] = rawEntry.entry;
     }
 
-    buildAliasMap(characters);
-    return characters;
+    buildAliasMap(entities);
+    return entities;
 }
 
-async function loadCharacterIndex() {
+async function loadEntityIndex() {
     try {
         const directoryEntries = await fs.readdir(ENTITY_DIR, { withFileTypes: true });
         const files = directoryEntries
@@ -121,25 +121,25 @@ async function loadCharacterIndex() {
         for (const fileName of files) {
             const filePath = path.join(ENTITY_DIR, fileName);
             const parsed = JSON.parse(await fs.readFile(filePath, 'utf8'));
-            const normalized = normalizeCharacterEntry(parsed, fileName);
+            const normalized = normalizeEntityEntry(parsed, fileName);
 
             rawEntries.push(normalized);
         }
 
-        const characters = normalizeCharacterEntries(rawEntries);
+        const entities = normalizeEntityEntries(rawEntries);
 
         return {
             sourcePath: ENTITY_DIR,
             exists: files.length > 0,
-            characters,
-            aliasMap: buildAliasMap(characters)
+            entities,
+            aliasMap: buildAliasMap(entities)
         };
     } catch (error) {
         if (error && error.code === 'ENOENT') {
             return {
                 sourcePath: ENTITY_DIR,
                 exists: false,
-                characters: {},
+                entities: {},
                 aliasMap: new Map()
             };
         }
@@ -163,33 +163,33 @@ async function loadAliasMap() {
         );
     } catch (error) {
         if (error && error.code === 'ENOENT') {
-            const characterIndex = await loadCharacterIndex();
-            return characterIndex.aliasMap;
+            const entityIndex = await loadEntityIndex();
+            return entityIndex.aliasMap;
         }
 
         throw error;
     }
 }
 
-function resolveCharacters(inputCharacters, characterIndex) {
+function resolveEntities(inputEntities, entityIndex) {
     // 弱自动化模式：已知别名解析为 canonical id，未知名称原样保留，
     // 由 process-issue 后续自动创建角色占位文件并交由 PR 人工审核。
-    if (!characterIndex || !characterIndex.exists) {
-        const characters = Array.from(new Set(inputCharacters.map((item) => normalizeText(item)).filter(Boolean))).sort(compareText);
-        return { characters, unresolved: [] };
+    if (!entityIndex || !entityIndex.exists) {
+        const entities = Array.from(new Set(inputEntities.map((item) => normalizeText(item)).filter(Boolean))).sort(compareText);
+        return { entities, unresolved: [] };
     }
 
     const resolved = [];
     const unresolved = [];
 
-    for (const character of inputCharacters) {
-        const normalized = normalizeText(character);
+    for (const entity of inputEntities) {
+        const normalized = normalizeText(entity);
 
         if (!normalized) {
             continue;
         }
 
-        const canonicalId = characterIndex.aliasMap.get(normalized);
+        const canonicalId = entityIndex.aliasMap.get(normalized);
 
         if (canonicalId) {
             resolved.push(canonicalId);
@@ -199,7 +199,7 @@ function resolveCharacters(inputCharacters, characterIndex) {
     }
 
     return {
-        characters: Array.from(new Set(resolved)).sort(compareText),
+        entities: Array.from(new Set(resolved)).sort(compareText),
         unresolved: Array.from(new Set(unresolved)).sort(compareText)
     };
 }
@@ -209,6 +209,6 @@ module.exports = {
     ENTITY_DIR,
     compareText,
     loadAliasMap,
-    loadCharacterIndex,
-    resolveCharacters
+    loadEntityIndex,
+    resolveEntities
 };

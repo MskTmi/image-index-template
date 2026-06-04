@@ -1,6 +1,6 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { CHARACTER_DIR, loadCharacterIndex } = require('./character-index.js');
+const { ENTITY_DIR, loadEntityIndex } = require('./entity-index.js');
 const { parseIssueBody } = require('./issue-parser.js');
 
 // 处理别名投稿：将用户提交的别名合并到已有角色文件中，创建 PR 等待审核。
@@ -31,9 +31,9 @@ async function fileExists(target) {
     }
 }
 
-function findCanonicalId(characterIndex, input) {
+function findCanonicalId(entityIndex, input) {
     // 支持通过 display_name、alias 或 id 匹配角色。
-    const aliasMap = characterIndex.aliasMap;
+    const aliasMap = entityIndex.aliasMap;
 
     if (aliasMap.has(input)) {
         return aliasMap.get(input);
@@ -42,7 +42,7 @@ function findCanonicalId(characterIndex, input) {
     // 直接匹配 canonical id（大小写不敏感兜底）。
     const lowerInput = input.toLowerCase();
 
-    for (const [canonicalId] of Object.entries(characterIndex.characters)) {
+    for (const [canonicalId] of Object.entries(entityIndex.entities)) {
         if (canonicalId.toLowerCase() === lowerInput) {
             return canonicalId;
         }
@@ -53,48 +53,48 @@ function findCanonicalId(characterIndex, input) {
 
 async function processAliasIssue(issue) {
     const parsed = parseIssueBody(issue.body || '');
-    const characterIndex = await loadCharacterIndex();
+    const entityIndex = await loadEntityIndex();
     const now = new Date().toISOString();
 
-    const characterInput = parsed.characters[0];
+    const entityInput = parsed.entities[0];
     const aliases = parsed.aliases;
 
-    if (!characterInput) {
-        throw new Error('Alias submission is missing the Character field.');
+    if (!entityInput) {
+        throw new Error('Alias submission is missing the Entity field.');
     }
 
     if (aliases.length === 0) {
         throw new Error('Alias submission is missing aliases.');
     }
 
-    const canonicalId = findCanonicalId(characterIndex, characterInput);
+    const canonicalId = findCanonicalId(entityIndex, entityInput);
 
     if (!canonicalId) {
         return {
             issue_number: issue.number,
             canonical_id: null,
-            character_display_name: null,
+            entity_display_name: null,
             added: [],
             skipped: [],
-            unmatched: [characterInput]
+            unmatched: [entityInput]
         };
     }
 
-    const charFilePath = path.join(CHARACTER_DIR, `${canonicalId}.json`);
-    let charEntry;
+    const entityFilePath = path.join(ENTITY_DIR, `${canonicalId}.json`);
+    let entityEntry;
 
-    if (await fileExists(charFilePath)) {
-        charEntry = JSON.parse(await fs.readFile(charFilePath, 'utf8'));
+    if (await fileExists(entityFilePath)) {
+        entityEntry = JSON.parse(await fs.readFile(entityFilePath, 'utf8'));
     } else {
-        charEntry = characterIndex.characters[canonicalId];
+        entityEntry = entityIndex.entities[canonicalId];
     }
 
-    const existingAliases = new Set(charEntry.aliases || []);
+    const existingAliases = new Set(entityEntry.aliases || []);
     const added = [];
     const skipped = [];
 
     for (const alias of aliases) {
-        if (alias === charEntry.id || alias === charEntry.display_name) {
+        if (alias === entityEntry.id || alias === entityEntry.display_name) {
             skipped.push(alias);
         } else if (existingAliases.has(alias)) {
             skipped.push(alias);
@@ -105,16 +105,16 @@ async function processAliasIssue(issue) {
     }
 
     if (added.length > 0) {
-        charEntry.aliases = Array.from(existingAliases).sort();
-        charEntry.last_updated = now;
-        await fs.mkdir(CHARACTER_DIR, { recursive: true });
-        await fs.writeFile(charFilePath, `${JSON.stringify(charEntry, null, 2)}\n`, 'utf8');
+        entityEntry.aliases = Array.from(existingAliases).sort();
+        entityEntry.last_updated = now;
+        await fs.mkdir(ENTITY_DIR, { recursive: true });
+        await fs.writeFile(entityFilePath, `${JSON.stringify(entityEntry, null, 2)}\n`, 'utf8');
     }
 
     return {
         issue_number: issue.number,
         canonical_id: canonicalId,
-        character_display_name: charEntry.display_name,
+        entity_display_name: entityEntry.display_name,
         added,
         skipped,
         unmatched: []

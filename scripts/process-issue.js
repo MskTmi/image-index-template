@@ -4,7 +4,7 @@ const os = require('node:os');
 const path = require('node:path');
 const sharp = require('sharp');
 const { customAlphabet } = require('nanoid');
-const { CHARACTER_DIR, loadAliasMap, loadCharacterIndex, resolveCharacters } = require('./character-index.js');
+const { ENTITY_DIR, loadAliasMap, loadEntityIndex, resolveEntities } = require('./entity-index.js');
 const { parseIssueBody } = require('./issue-parser.js');
 const { optimizeImage } = require('./optimize-image.js');
 
@@ -106,7 +106,7 @@ async function findDuplicateByHash(hash) {
     return null;
 }
 
-async function writeMetadata({ id, games, characters, hash, width, height }) {
+async function writeMetadata({ id, games, entities, hash, width, height }) {
     const metadata = {
         id,
         image: `data/${id}.jpg`,
@@ -114,7 +114,7 @@ async function writeMetadata({ id, games, characters, hash, width, height }) {
         width,
         height,
         games,
-        characters
+        entities
     };
 
     const metaFile = path.join(META_DIR, `${id}.json`);
@@ -127,24 +127,24 @@ async function processIssue(issue) {
     // 未知名称自动创建角色占位文件，一并进入 PR 等待人工审核。
     const parsed = parseIssueBody(issue.body || '');
     const aliasMap = await loadAliasMap();
-    const characterIndex = await loadCharacterIndex();
+    const entityIndex = await loadEntityIndex();
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'image-index-'));
-    const { characters: resolvedCharacters, unresolved } = resolveCharacters(parsed.characters, {
+    const { entities: resolvedEntities, unresolved } = resolveEntities(parsed.entities, {
         exists: aliasMap.size > 0,
         aliasMap
     });
 
-    // 对未能匹配到已知角色的名称，自动创建 characters/{name}.json 占位文件。
-    const newCharacterIds = [];
+    // 对未能匹配到已知角色的名称，自动创建 entities/{name}.json 占位文件。
+    const newEntityIds = [];
     const now = new Date().toISOString();
 
     for (const name of unresolved) {
-        const charFilePath = path.join(CHARACTER_DIR, `${name}.json`);
+        const entityFilePath = path.join(ENTITY_DIR, `${name}.json`);
 
-        if (!(await fileExists(charFilePath))) {
-            await fs.mkdir(CHARACTER_DIR, { recursive: true });
+        if (!(await fileExists(entityFilePath))) {
+            await fs.mkdir(ENTITY_DIR, { recursive: true });
 
-            const charEntry = {
+            const entityEntry = {
                 id: name,
                 display_name: name,
                 games: parsed.games,
@@ -152,13 +152,13 @@ async function processIssue(issue) {
                 last_updated: now
             };
 
-            await fs.writeFile(charFilePath, `${JSON.stringify(charEntry, null, 2)}\n`, 'utf8');
+            await fs.writeFile(entityFilePath, `${JSON.stringify(entityEntry, null, 2)}\n`, 'utf8');
         }
 
-        newCharacterIds.push(name);
+        newEntityIds.push(name);
     }
 
-    const canonicalCharacters = [...resolvedCharacters, ...newCharacterIds];
+    const canonicalEntities = [...resolvedEntities, ...newEntityIds];
 
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.mkdir(META_DIR, { recursive: true });
@@ -196,7 +196,7 @@ async function processIssue(issue) {
             await writeMetadata({
                 id,
                 games: parsed.games,
-                characters: canonicalCharacters,
+                entities: canonicalEntities,
                 hash,
                 width,
                 height
@@ -211,11 +211,11 @@ async function processIssue(issue) {
     return {
         issue_number: issue.number,
         games: parsed.games,
-        characters: canonicalCharacters,
+        entities: canonicalEntities,
         created,
         duplicates,
-        resolved_characters: resolvedCharacters,
-        new_characters: newCharacterIds
+        resolved_entities: resolvedEntities,
+        new_entities: newEntityIds
     };
 }
 
