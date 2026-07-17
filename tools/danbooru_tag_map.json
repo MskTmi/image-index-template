@@ -1,5 +1,61 @@
 {
-    "source_suffixes": {},
-    "source_keywords": {},
-    "tag_overrides": {}
+    "source_suffixes": {
+        "genshin": [
+            "genshin_impact"
+        ],
+        "bh3": [
+            "honkai_impact_3rd",
+            "honkai_impact"
+        ],
+        "hsr": [
+            "honkai:_star_rail",
+            "honkai_star_rail"
+        ],
+        "zzz": [
+            "zenless_zone_zero"
+        ]
+    },
+    "source_keywords": {
+        "genshin": [
+            "原神",
+            "genshin",
+            "genshin_impact"
+        ],
+        "bh3": [
+            "崩坏3",
+            "崩坏3rd",
+            "崩壊3rd",
+            "honkai",
+            "honkai_impact",
+            "崩坏",
+            "miHoYo"
+        ],
+        "hsr": [
+            "星穹铁道",
+            "崩坏星穹铁道",
+            "star_rail",
+            "honkai_star_rail"
+        ],
+        "zzz": [
+            "绝区零",
+            "zenless",
+            "zzz",
+            "zenless_zone_zero"
+        ]
+    },
+    "tag_overrides": {
+        "anby_demara": "Anby",
+        "nicole_demara": "Nicole",
+        "kiana_kaslana": "Kiana",
+        "murata_himeko": "Himeko",
+        "theresa_apocalypse": "Theresa",
+        "bronya_zaychik": "Bronya",
+        "bronya_rand": "Bronya",
+        "raiden_mei": "Mei",
+        "march_7th": "March7th",
+        "march_7th_(honkai:_star_rail)": "March7th",
+        "trailblazer_(honkai:_star_rail)": "stelle",
+        "ei_(genshin_impact)": "RaidenShogun",
+        "elysia_(honkai_impact)": "Elysia"
+    }
 }
